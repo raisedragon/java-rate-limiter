@@ -18,10 +18,8 @@ package com.github.cpthack.commons.ratelimiter.lock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.cpthack.commons.rdclient.config.RedisConfig;
 import com.github.cpthack.commons.ratelimiter.config.CustomRateLimiterConfig;
 import com.github.cpthack.commons.ratelimiter.config.RateLimiterConfig;
-import com.github.cpthack.commons.ratelimiter.config.RateRedisConfig;
 
 /**
  * <b>LockTest.java</b></br>
@@ -46,9 +44,8 @@ public class LockTest {
 	public static void main(String[] args) {
 		RateLimiterConfig rateLimiterConfig = new CustomRateLimiterConfig();
 		// lock = getSingleLock(rateLimiterConfig);
-		RedisConfig redisConfig = new RateRedisConfig();
 		
-		lock = getDistributedLock(rateLimiterConfig, redisConfig);
+		lock = getDistributedLock(rateLimiterConfig);
 		
 		// RedisClientFactory.getClient(redisConfig).set("/lock1", "10");//
 		// 模拟releaseLock没有执行导致的缓存中存在较多正数值得锁KEY
@@ -60,8 +57,8 @@ public class LockTest {
 		return LockFactory.getInstance().single(rateLimiterConfig);
 	}
 	
-	private static Lock getDistributedLock(RateLimiterConfig rateLimiterConfig, RedisConfig redisConfig) {
-		return LockFactory.getInstance().distributed(rateLimiterConfig, redisConfig);
+	private static Lock getDistributedLock(RateLimiterConfig rateLimiterConfig) {
+		return LockFactory.getInstance().distributed(rateLimiterConfig);
 	}
 	
 	private static void simulateConcurrentThread(int threadNum) {

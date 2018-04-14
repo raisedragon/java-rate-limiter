@@ -18,10 +18,8 @@ package com.github.cpthack.commons.ratelimiter.limiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.cpthack.commons.rdclient.config.RedisConfig;
 import com.github.cpthack.commons.ratelimiter.config.CustomRateLimiterConfig;
 import com.github.cpthack.commons.ratelimiter.config.RateLimiterConfig;
-import com.github.cpthack.commons.ratelimiter.config.RateRedisConfig;
 
 /**
  * <b>LimiterTest.java</b></br>
@@ -41,7 +39,6 @@ public class LimiterTest {
 	private final static String	ROUTER_NAME	= "/thread-test";
 	
 	public static void main(String[] args) {
-		RedisConfig redisConfig = new RateRedisConfig();
 		RateLimiterConfig rateLimiterConfig = new CustomRateLimiterConfig();
 		
 		singleLimiter(rateLimiterConfig);// 实例化单机限流对象
@@ -65,8 +62,8 @@ public class LimiterTest {
 		limiter = LimiterFactory.getInstance().single(rateLimiterConfig);
 	}
 	
-	private static void DistributedLimiter(RateLimiterConfig rateLimiterConfig, RedisConfig redisConfig) {
-		limiter = LimiterFactory.getInstance().distributed(rateLimiterConfig, redisConfig);
+	private static void DistributedLimiter(RateLimiterConfig rateLimiterConfig) {
+		limiter = LimiterFactory.getInstance().distributed(rateLimiterConfig);
 	}
 	
 	/**

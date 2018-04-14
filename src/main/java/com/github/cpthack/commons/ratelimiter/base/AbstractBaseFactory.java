@@ -18,7 +18,6 @@ package com.github.cpthack.commons.ratelimiter.base;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.cpthack.commons.rdclient.config.RedisConfig;
 import com.github.cpthack.commons.ratelimiter.config.RateLimiterConfig;
 import com.github.cpthack.commons.ratelimiter.constants.RateLimiterConstants;
 import com.github.cpthack.commons.ratelimiter.utils.ProxyHelper;
@@ -88,13 +87,9 @@ public abstract class AbstractBaseFactory<T> {
 		return distributed(null);
 	}
 	
-	@SuppressWarnings("hiding")
-	public <T> T distributed(RateLimiterConfig rateLimiterConfig) {
-		return distributed(rateLimiterConfig, null);
-	}
 	
 	@SuppressWarnings({ "unchecked", "hiding" })
-	public <T> T distributed(RateLimiterConfig rateLimiterConfig, RedisConfig redisConfig) {
+	public <T> T distributed(RateLimiterConfig rateLimiterConfig) {
 		T limiter = null;
 		if (null == rateLimiterConfig) {// 如果配置变量为空，则启用默认配置，默认配置需要依赖:rate-limiter.properties文件
 			String rateLimiterDefaultConfigName = RateLimiterConstants.RATE_LIMITER_CONFIG_FILE;
@@ -110,7 +105,7 @@ public abstract class AbstractBaseFactory<T> {
 		limiter = (T) distributedMap.get(rateLimiterConfig.getConfigFile());
 		if (null != limiter)
 			return limiter;
-		limiter = (T) ProxyHelper.getInstance(distributedClass, new Class[] { RateLimiterConfig.class, RedisConfig.class }, new Object[] { rateLimiterConfig, redisConfig });
+		limiter = (T) ProxyHelper.getInstance(distributedClass, new Class[] { RateLimiterConfig.class }, new Object[] { rateLimiterConfig });
 		distributedMap.put(rateLimiterConfig.getConfigFile(), limiter);
 		return limiter;
 	}

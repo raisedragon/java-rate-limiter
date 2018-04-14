@@ -22,12 +22,11 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.cpthack.commons.rdclient.config.RedisConfig;
-import com.cpthack.commons.rdclient.core.RedisClient;
-import com.cpthack.commons.rdclient.core.RedisClientFactory;
 import com.github.cpthack.commons.ratelimiter.bean.LockBean;
 import com.github.cpthack.commons.ratelimiter.config.RateLimiterConfig;
 import com.github.cpthack.commons.ratelimiter.constants.RateLimiterConstants;
+
+import redis.clients.jedis.Jedis;
 
 /**
  * <b>DistributedLock.java</b></br>
@@ -44,17 +43,19 @@ public class DistributedLock implements Lock {
 	
 	private final static Logger			 logger		 = LoggerFactory.getLogger(DistributedLock.class);
 	
-	private static RedisClient<?>		 redisClient = null;
+	private static Jedis		 redisClient = null;
 	private static Map<String, LockBean> lockBeanMap = null;
 	
+	
+	
 	public DistributedLock() {
-		this(null, null);
+		this(null);
 	}
 	
-	public DistributedLock(RateLimiterConfig rateLimiterConfig, RedisConfig redisConfig) {
+	public DistributedLock(RateLimiterConfig rateLimiterConfig) {
 		if (null == rateLimiterConfig)
 			rateLimiterConfig = new RateLimiterConfig();
-		initLockConfig(rateLimiterConfig, redisConfig);
+		initLockConfig(rateLimiterConfig);
 	}
 	
 	/**
@@ -70,16 +71,15 @@ public class DistributedLock implements Lock {
 	 *            void
 	 *
 	 */
-	protected void initLockConfig(RateLimiterConfig rateLimiterConfig, RedisConfig redisConfig) {
+	protected void initLockConfig(RateLimiterConfig rateLimiterConfig) {
 		if (null != redisClient)	// 当redisClient不为空，意味着限流配置已经初始化到缓存中
 			return;
-		redisClient = RedisClientFactory.getClient(redisConfig);
 		lockBeanMap = new HashMap<String, LockBean>();
 		
 		List<LockBean> lockList = rateLimiterConfig.getLockList();
 		for (LockBean lockBean : lockList) {
 			logger.debug("分布式并发锁-加载并发配置>>>uniqueKey = [{}],time = [{}],count = [{}]", lockBean.getUniqueKey(), lockBean.getExpireTime(), lockBean.getPermits());
-			redisClient.setnx(lockBean.getUniqueKey(), "0", lockBean.getExpireTime());
+			redisClient.set(lockBean.getUniqueKey(),  "0", "NX", "EX" , lockBean.getExpireTime());
 			lockBeanMap.put(lockBean.getUniqueKey(), lockBean);
 		}
 	}
@@ -111,7 +111,8 @@ public class DistributedLock implements Lock {
 		LockBean lockBean = getLockBean(uniqueKey, expireTime, permits);
 		expireTime = lockBean.getExpireTime();
 		permits = lockBean.getPermits();
-		long result = redisClient.setnx(uniqueKey, "0", lockBean.getExpireTime());
+		String resultStr = redisClient.set(uniqueKey, "0", "NX", "EX", lockBean.getExpireTime());
+		long result = Long.valueOf(resultStr);
 		result = redisClient.incr(uniqueKey);
 		
 		// if (result <= 0) {// 应对因当releaseLock操作执行多次等问题而导致缓存中驻留着value小于0的数据
@@ -142,7 +143,8 @@ public class DistributedLock implements Lock {
 			// TODO 抛出异常
 			return false;
 		}
-		long result = redisClient.setnx(uniqueKey, "0", lockBean.getExpireTime());
+		String resultStr = redisClient.set(uniqueKey, "0", "NX", "EX", lockBean.getExpireTime());
+		long result = Long.valueOf(resultStr);
 		if (result == 0) {
 			redisClient.decr(uniqueKey);
 		}

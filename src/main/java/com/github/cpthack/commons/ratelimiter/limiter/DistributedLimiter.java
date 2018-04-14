@@ -22,11 +22,10 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.cpthack.commons.rdclient.config.RedisConfig;
-import com.cpthack.commons.rdclient.core.RedisClient;
-import com.cpthack.commons.rdclient.core.RedisClientFactory;
 import com.github.cpthack.commons.ratelimiter.bean.LimiterBean;
 import com.github.cpthack.commons.ratelimiter.config.RateLimiterConfig;
+
+import redis.clients.jedis.Jedis;
 
 /**
  * <b>DistributedLimiter.java</b></br>
@@ -44,22 +43,19 @@ public class DistributedLimiter implements Limiter {
 	private final static Logger				logger		   = LoggerFactory.getLogger(DistributedLimiter.class);
 	
 	@SuppressWarnings("rawtypes")
-	private static RedisClient				redisClient	   = null;
+	private static Jedis				redisClient	   = null;
 	private static Map<String, LimiterBean>	limiterBeanMap = null;
 	
 	public DistributedLimiter() {
-		this(null, null);
+		this(null);
 	}
+	
 	
 	public DistributedLimiter(RateLimiterConfig rateLimiterConfig) {
-		this(rateLimiterConfig, null);
-	}
-	
-	public DistributedLimiter(RateLimiterConfig rateLimiterConfig, RedisConfig redisConfig) {
 		if (null == rateLimiterConfig) {
 			rateLimiterConfig = new RateLimiterConfig();
 		}
-		initLimiterConfig(rateLimiterConfig, redisConfig);
+		initLimiterConfig(rateLimiterConfig);
 	}
 	
 	/**
@@ -76,16 +72,17 @@ public class DistributedLimiter implements Limiter {
 	 *            缓存配置类
 	 *
 	 */
-	protected void initLimiterConfig(RateLimiterConfig rateLimiterConfig, RedisConfig redisConfig) {
+	protected void initLimiterConfig(RateLimiterConfig rateLimiterConfig) {
 		if (null != redisClient)	// 当redisClient不为空，意味着限流配置已经初始化到缓存中
 			return;
 		
-		redisClient = RedisClientFactory.getClient(redisConfig);
+//		redisClient = RedisClientFactory.getClient(redisConfig);
 		limiterBeanMap = new HashMap<String, LimiterBean>();
 		
 		List<LimiterBean> limiterList = rateLimiterConfig.getLimiterList();
 		for (LimiterBean limiterBean : limiterList) {
-			redisClient.setnx(limiterBean.getRouter(), "0", limiterBean.getTime());
+			redisClient.set(limiterBean.getRouter(), "0", "NX", "EX", limiterBean.getTime());
+//			redisClient.setnx(limiterBean.getRouter(), "0", limiterBean.getTime());
 			limiterBeanMap.put(limiterBean.getRouter(), limiterBean);
 			logger.debug("分布式限流-加载限流配置>>>router = [{}],time = [{}],count = [{}]", limiterBean.getRouter(), limiterBean.getTime(), limiterBean.getCount());
 		}
@@ -102,7 +99,8 @@ public class DistributedLimiter implements Limiter {
 		 * 每次根据路由地址强制设置缓存和过期时间，防止缓存过期后导致限流失效<br>
 		 * 倘若已经存在该路由的缓存KEY，不会设置新值
 		 */
-		redisClient.setnx(limiterBean.getRouter(), "0", limiterBean.getTime());
+		redisClient.set(limiterBean.getRouter(), "0", "NX", "EX", limiterBean.getTime());
+//		redisClient.setnx(limiterBean.getRouter(), "0", limiterBean.getTime());
 		long currentCount = redisClient.incr(routerName);
 		
 		if (currentCount > limiterCount)// 如果超过限流值，则直接返回false
